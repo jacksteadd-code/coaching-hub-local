@@ -1,4 +1,4 @@
-import { api, esc, toast, attempt, dialog, confirmDialog, field, hrs, pct, cap, avatar, sampleBadge, statusBadge, sourceBadge, flagList, calc, ring, countdownParts, priDot, shortDate } from './ui.js';
+import { api, esc, toast, attempt, dialog, confirmDialog, field, hrs, pct, cap, avatar, sampleBadge, statusBadge, sourceBadge, flagList, calc, ring, countdownParts, priDot, shortDate, themeSwitch } from './ui.js';
 import { renderAthlete, taskDialog } from './athlete.js';
 import { renderPlanner, renderReview } from './planner.js';
 
@@ -18,7 +18,7 @@ const MOBILE = ['overview', 'athletes', 'review', 'tasks', 'settings'];
 const icon = (d) => `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="${d}"/></svg>`;
 
 function renderNav(active, counts = {}) {
-  document.getElementById('nav').innerHTML = `<div class="brand"><span></span>Coaching Hub</div>` + NAV.map(([k, l, h, d]) => `<a href="${h}" class="${k === active ? 'active' : ''}">${icon(d)}${l}${counts[k] ? `<span class="count">${counts[k]}</span>` : ''}</a>`).join('');
+  document.getElementById('nav').innerHTML = `<div class="brand"><span></span>Coaching Hub</div>` + NAV.map(([k, l, h, d]) => `<a href="${h}" class="${k === active ? 'active' : ''}">${icon(d)}${l}${counts[k] ? `<span class="count">${counts[k]}</span>` : ''}</a>`).join('') + themeSwitch('theme-switch');
   document.getElementById('mnav').innerHTML = NAV.filter(([k]) => MOBILE.includes(k)).map(([k, l, h, d]) => `<a href="${h}" class="${k === active ? 'active' : ''}">${icon(d)}${{ review: 'Review', tasks: 'Tasks' }[k] || l.split(' ')[0]}</a>`).join('');
 }
 
@@ -448,6 +448,7 @@ async function renderSettings() {
   const r = s.rules;
   main().innerHTML = `<div class="page-head"><div><h1>Settings</h1><small>Data folder: <span class="mono">${esc(s.dataDir)}</span></small></div></div>
   <div class="grid g2">
+    <div class="card"><h2>Appearance</h2><p class="muted">Auto follows your Mac's light or dark setting.</p>${themeSwitch()}</div>
     <div class="card"><h2>Backup and restore</h2>
       <p>A backup is one <span class="mono">.chbackup</span> file containing the database and every attached file.</p>
       <div class="row"><a class="btn primary" href="/download/backup">Download backup now</a><button data-backup>Save backup to folder</button><button data-restore>Restore from backup…</button></div>

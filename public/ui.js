@@ -160,3 +160,22 @@ export function shortDate(iso, withYear = false) {
   if (Number.isNaN(+d)) return iso;
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', ...(withYear ? { year: 'numeric' } : {}), timeZone: 'UTC' });
 }
+
+// Appearance: 'auto' follows the Mac, or force 'light' / 'dark'. Stored in this app window only.
+export function getTheme() {
+  try { const t = localStorage.getItem('theme'); return t === 'light' || t === 'dark' ? t : 'auto'; } catch { return 'auto'; }
+}
+export function setTheme(t) {
+  try { if (t === 'auto') localStorage.removeItem('theme'); else localStorage.setItem('theme', t); } catch { /* still applies for this session */ }
+  if (t === 'auto') delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = t;
+  document.querySelectorAll('[data-theme-set]').forEach((b) => b.classList.toggle('on', b.dataset.themeSet === t));
+}
+export function themeSwitch(extraClass = '') {
+  const t = getTheme();
+  return `<span class="seg ${extraClass}" role="group" aria-label="Appearance">${[['auto', 'Auto'], ['light', 'Light'], ['dark', 'Dark']].map(([k, l]) => `<button type="button" data-theme-set="${k}" class="${t === k ? 'on' : ''}">${l}</button>`).join('')}</span>`;
+}
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-theme-set]');
+  if (b) setTheme(b.dataset.themeSet);
+});

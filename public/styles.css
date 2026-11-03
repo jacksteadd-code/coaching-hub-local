@@ -32,7 +32,7 @@
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #000000;
     --surface: #1c1c1e;
     --surface-2: #2c2c2e;
@@ -59,6 +59,33 @@
     --side-bg: rgba(28, 28, 30, 0.72);
     color-scheme: dark;
   }
+}
+:root[data-theme="dark"] {
+  --bg: #000000;
+  --surface: #1c1c1e;
+  --surface-2: #2c2c2e;
+  --border: #38383a;
+  --hair: rgba(255, 255, 255, 0.08);
+  --text: #f5f5f7;
+  --muted: #98989d;
+  --faint: #636366;
+  --accent: #0a84ff;
+  --accent-soft: #0a2540;
+  --accent-text: #4da3ff;
+  --danger: #ff6961;
+  --danger-soft: #3a1a1a;
+  --warn: #ffb340;
+  --warn-soft: #3a2a10;
+  --ok: #30d158;
+  --ok-soft: #10301b;
+  --swim: #64d2ff;
+  --bike: #0a84ff;
+  --run: #bf5af2;
+  --planned: #48484a;
+  --shadow: none;
+  --shadow-hover: 0 0 0 1px rgba(255, 255, 255, 0.12);
+  --side-bg: rgba(28, 28, 30, 0.72);
+  color-scheme: dark;
 }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--text); line-height: 1.47; letter-spacing: -0.01em; }
@@ -312,3 +339,7 @@ details.more[open] summary { margin-bottom: 4px; }
 ol.steps { padding-left: 22px; margin: 10px 0; }
 ol.steps li { margin-bottom: 10px; line-height: 1.5; }
 kbd { font-family: inherit; font-size: 12px; border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 4px; padding: 0 4px; }
+
+/* theme switch */
+.theme-switch { margin: 18px 10px 0; display: flex; }
+.theme-switch button { flex: 1; justify-content: center; padding: 5px 0; font-size: 0.78rem; }
