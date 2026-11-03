@@ -1,4 +1,4 @@
-import { api, esc, toast, attempt, dialog, confirmDialog, field, hrs, pct, cap, avatar, sampleBadge, statusBadge, sourceBadge, flagList, calc, SPORTS } from './ui.js';
+import { api, esc, toast, attempt, dialog, confirmDialog, field, hrs, pct, cap, avatar, sampleBadge, statusBadge, sourceBadge, flagList, calc, SPORTS, ring, countdownParts, priDot, shortDate } from './ui.js';
 import { weeklyHoursChart, chartLegend, lineChart } from './charts.js';
 import { main, rerender, wireCommon, taskRow } from './app.js';
 
@@ -11,10 +11,10 @@ export async function renderAthlete(id, tab, rest) {
   const a = d.athlete;
   const dv = d.derived;
   main().innerHTML = `
-  <div class="row" style="margin-bottom:6px"><a href="#/athletes" class="muted">← Athletes</a></div>
-  <div class="page-head" style="align-items:center"><div class="name-cell">${avatar(a, true)}<div><h1>${esc(a.name)}${sampleBadge(a)}</h1>
-    <div class="row"><small>${esc(cap(a.sport))}</small>${statusBadge(a.status)}${dv.coaching ? `<small>Coached ${esc(dv.coaching.label)}</small>` : ''}${dv.phase ? `<span class="badge blue">${esc(dv.phase)}</span>` : ''}${dv.nextRace ? `<small>${esc(dv.nextRace.name)} (${dv.nextRace.priority}) in ${esc(dv.nextRace.countdown.label)}</small>` : ''}</div></div></div>
-    <div class="row"><button data-qnote>Quick note</button><button data-qweek>Log this week</button></div></div>
+  <a href="#/athletes" class="back">‹ Athletes</a>
+  <div class="page-head" style="align-items:center;margin-bottom:0"><div class="hero">${avatar(a, true)}<div><h1>${esc(a.name)}${sampleBadge(a)}</h1>
+    <div class="sub"><span>${esc(cap(a.sport))}</span>${dv.phase ? `<span class="sep">·</span><span>${esc(dv.phase)}</span>` : ''}${dv.coaching ? `<span class="sep">·</span><span>with you ${esc(dv.coaching.label)}</span>` : ''}${a.status !== 'active' ? statusBadge(a.status) : ''}</div></div></div>
+    <div class="row"><button data-qnote>Quick note</button><button class="primary" data-qweek>Log this week</button></div></div>
   <nav class="tabs">${TABS.map(([k, l]) => `<a href="#/athletes/${id}/${k}" class="${k === tab ? 'active' : ''}">${l}</a>`).join('')}</nav>
   <div id="tab"></div>`;
   main().querySelector('[data-qnote]').onclick = () => noteDialog(id).then((r) => r && rerender());
@@ -35,18 +35,38 @@ function tabSummary(el, d) {
   const avail = p.availability ? DAYS.map(([k, l]) => (p.availability[k] ? `${l} ${p.availability[k]}h` : null)).filter(Boolean).join(', ') : '';
   const kv = (pairs) => `<dl class="kv">${pairs.filter(([, v]) => v).map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('') || '<dd class="muted">Not recorded yet. <a href="#/athletes/' + a.id + '/profile">Fill in profile</a></dd>'}</dl>`;
   const lw = dv.lastWeek;
-  el.innerHTML = `<div class="grid g3">
-    <div class="card"><h2>Attention</h2>${flagList(dv.flags)}${dv.flags.length ? `<button class="small" data-flag-task style="margin-top:8px">Create task from a flag</button>` : ''}</div>
-    <div class="card"><h2>The person</h2>${kv([['Preferred name', esc(a.preferred_name)], ['Goals', esc(a.goals)], ['Work', esc([p.occupation, p.work_hours, p.shift_pattern].filter(Boolean).join(' · '))], ['Family', esc(p.family)], ['Communication', esc([p.comms_preference, a.checkin_days ? `check-in every ${a.checkin_days} days` : ''].filter(Boolean).join(' · '))], ['Motivation', esc(p.motivation)], ['Finds difficult', esc(p.difficulties)], ['Travel/holidays', esc(p.travel)], ['Birthday', dv.birthday ? `${esc(a.birthday.slice(5))} (in ${dv.birthday.inDays} days)` : ''], ['Local time zone', esc(a.timezone)]])}</div>
-    <div class="card"><h2>Training context</h2>${kv([['Availability', p.typical_weekly_hours || p.max_weekly_hours ? `typical ${esc(p.typical_weekly_hours || '?')} h, max ${esc(p.max_weekly_hours || '?')} h / week` : ''], ['By day', esc(avail)], ['Facilities', esc(['pool', 'gym', 'trainer', 'outdoor'].filter((k) => p.facilities?.[k]).join(', '))], ['Constraints', esc(p.constraints)], ['Background', esc(p.background)], ['Strengths', esc(p.strengths)], ['Limiters', esc(p.limiters)], ['Health notes', h.injuries ? `${h.active_issue ? '<span class="badge red">Review</span> ' : ''}${esc(h.injuries)}` : ''], ['Healthcare guidance', esc(h.guidance)]])}</div>
+  const nr = dv.nextRace;
+  const cd = nr ? countdownParts(nr.countdown) : null;
+  const first = esc(a.preferred_name || a.name.split(' ')[0]);
+  const thr = Object.entries(d.thresholds);
+  const testState = (x) => dv.testWindows[x].status;
+  const testTone = (st) => (st === 'overdue' ? 'red' : st === 'due' ? 'amber' : st === 'never' ? '' : 'green');
+  const maxDay = Math.max(1, ...DAYS.map(([k]) => +(p.availability?.[k] || 0)));
+  const facts = [['Work', [p.occupation, p.work_hours, p.shift_pattern].filter(Boolean).join(' · ')], ['Family', p.family], ['Talk via', [p.comms_preference, a.checkin_days ? `every ${a.checkin_days} days` : ''].filter(Boolean).join(' · ')], ['Motivation', p.motivation], ['Finds hard', p.difficulties], ['Background', p.background], ['Strengths', p.strengths], ['Limiters', p.limiters], ['Constraints', p.constraints], ['Travel', p.travel], ['Birthday', dv.birthday ? `${shortDate(a.birthday)} · in ${dv.birthday.inDays} days` : ''], ['Time zone', a.timezone]].filter(([, v]) => v);
+  const health = h.injuries || h.guidance;
+  el.innerHTML = `
+  <div class="tiles">
+    <a class="tile ring-tile" href="#/athletes/${a.id}/training/${lw.week}">${ring(lw.compliance, { size: 68, stroke: 7 })}<div><div class="eyebrow" style="margin-bottom:4px">Last week</div><div class="stat" style="font-size:1.9rem">${lw.completedHours != null ? lw.completedHours.toFixed(1) : '—'}<span class="unit">h</span></div><div class="stat-label" style="margin:0">${lw.plannedHours != null ? `of ${hrs(lw.plannedHours)} planned` : lw.source === 'missing' ? 'No data' : 'nothing planned'}</div></div></a>
+    ${nr ? `<a class="tile" href="#/athletes/${a.id}/races"><div class="eyebrow">Next race</div><div class="stat">${cd.n}<span class="unit">${cd.u}</span></div><div class="stat-label">${priDot(nr.priority)} ${esc(nr.name)}</div></a>` : `<a class="tile" href="#/athletes/${a.id}/races"><div class="eyebrow">Next race</div><div class="stat" style="color:var(--faint)">—</div><div class="stat-label">None planned</div></a>`}
+    ${thr.length ? thr.slice(0, 3).map(([k, v]) => `<a class="tile" href="#/athletes/${a.id}/tests"><div class="eyebrow">${esc(k)}</div><div class="stat">${fmtThresholdBig(v)}</div><div class="stat-label">set ${esc(shortDate(v.from, true))}</div></a>`).join('') : `<a class="tile" href="#/athletes/${a.id}/tests"><div class="eyebrow">Thresholds</div><div class="stat" style="color:var(--faint)">—</div><div class="stat-label">No tests yet</div></a>`}
+    <a class="tile" href="#/athletes/${a.id}/tests"><div class="eyebrow">Tests</div><div class="pill-row" style="margin-top:6px">${['swim', 'bike', 'run'].map((x) => `<span class="badge ${testTone(testState(x))}" title="${cap(x)}: last ${esc(dv.lastTest[x] || 'never')}">${cap(x)} · ${esc(testState(x))}</span>`).join('')}</div></a>
   </div>
-  <div class="grid g3" style="margin-top:16px">
-    <div class="card"><h2>Last week <small>${esc(lw.week)}</small></h2><div class="row"><div><div class="stat">${hrs(lw.completedHours)}</div><div class="stat-label">of ${hrs(lw.plannedHours)} planned</div></div><div class="right">${sourceBadge(lw.source)}</div></div><a href="#/athletes/${a.id}/training/${lw.week}">Open week →</a></div>
-    <div class="card"><h2>Current thresholds</h2>${Object.keys(d.thresholds).length ? `<dl class="kv">${Object.entries(d.thresholds).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${fmtThreshold(v)} <small>from ${esc(v.from)}</small></dd>`).join('')}</dl>` : '<p class="muted">No accepted test results yet.</p>'}<h3>Last tested</h3><small>${['swim', 'bike', 'run'].map((x) => `${cap(x)}: ${dv.lastTest[x] || 'never'} <span class="badge">${dv.testWindows[x].status}</span>`).join('<br>')}</small></div>
-    <div class="card"><h2>Upcoming races</h2>${upcoming.length ? upcoming.map((r) => `<div class="list-item"><span class="badge ${r.priority === 'A' ? 'red' : r.priority === 'B' ? 'amber' : ''}">${r.priority}</span><div class="grow">${esc(r.name)}<br><small>${esc(r.date)} · ${esc(calc.raceCountdown(r.date, dv.today).label)}</small></div></div>`).join('') : '<p class="muted">No races planned.</p>'}${dv.conflicts.map((c) => `<div class="notice warn" style="margin-top:8px">${esc(c.message)}</div>`).join('')}</div>
+  <div class="grid" style="grid-template-columns:minmax(0,2fr) minmax(0,1fr)" data-split>
+    <div class="card"><h2><span>Training <small class="muted">last 12 weeks</small></span><a class="btn small" href="#/athletes/${a.id}/training">Details</a></h2><div class="chart">${weeklyHoursChart(d.summaries.slice(-12))}</div><div style="margin-top:12px">${chartLegend()}</div></div>
+    <div class="card"><h2>Attention ${dv.flags.length ? `<span class="badge ${dv.flags.some((f) => f.severity === 'high') ? 'red' : 'amber'}">${dv.flags.length}</span>` : ''}</h2>${dv.flags.length ? `<div class="flags-compact">${flagList(dv.flags)}</div><button class="small" data-flag-task style="margin-top:12px">Make a task</button>` : '<p class="muted"><span class="ok-mark">✓</span> Nothing flagged.</p>'}</div>
   </div>
-  <div class="card" style="margin-top:16px"><h2>Training, last 12 weeks <a class="btn small" href="#/athletes/${a.id}/training">Details</a></h2>${chartLegend()}<div class="chart">${weeklyHoursChart(d.summaries.slice(-12))}</div></div>
-  <div class="card timeline" style="margin-top:16px"><h2>History</h2>${timelineHTML(d.timeline.slice(0, 12))}</div>`;
+  <div class="section-title">About ${first}<a class="btn small" href="#/athletes/${a.id}/profile">Edit profile</a></div>
+  <div class="grid" style="grid-template-columns:minmax(0,2fr) minmax(0,1fr)" data-split>
+    <div class="card">${a.goals ? `<div class="eyebrow">Goal</div><p class="big-quote">${esc(a.goals)}</p>` : ''}${facts.length ? `<div class="facts">${facts.map(([k, v]) => `<div><span class="eyebrow">${k}</span><span>${esc(v)}</span></div>`).join('')}</div>` : `<p class="muted">Not filled in yet. <a href="#/athletes/${a.id}/profile">Add details</a></p>`}
+      ${health ? `<div class="notice ${h.active_issue ? 'danger' : 'warn'}" style="margin:18px 0 0"><b>Health</b>${h.active_issue ? ' <span class="badge red">Review</span>' : ''}<br>${esc(h.injuries || '')}${h.guidance ? `<br><small>Guidance: ${esc(h.guidance)}</small>` : ''}</div>` : ''}</div>
+    <div class="card"><h2>Week shape</h2><div class="stat" style="font-size:1.9rem">${esc(p.typical_weekly_hours || '—')}<span class="unit">h typical</span></div><div class="stat-label">${p.max_weekly_hours ? `max ${esc(p.max_weekly_hours)} h a week` : ''}</div>
+      ${p.availability ? `<div class="days">${DAYS.map(([k, l]) => { const v = +(p.availability[k] || 0); return `<div title="${l}: ${v} h"><i class="${v ? '' : 'zero'}" style="height:${v ? Math.max(8, (v / maxDay) * 64) : 3}px"></i>${l[0]}</div>`; }).join('')}</div>` : ''}
+      <div class="pill-row" style="margin-top:18px">${[['pool', 'Pool'], ['gym', 'Gym'], ['trainer', 'Turbo'], ['outdoor', 'Outdoor']].map(([k, l]) => `<span class="chip ${p.facilities?.[k] ? '' : 'off'}">${l}</span>`).join('')}</div></div>
+  </div>
+  <div class="grid g2" style="margin-top:20px">
+    <div class="card"><h2>Races <a class="btn small" href="#/athletes/${a.id}/races">All</a></h2>${upcoming.length ? upcoming.map((r) => { const c = countdownParts(calc.raceCountdown(r.date, dv.today)); return `<div class="race-row"><div class="count"><b>${c.n}</b><small class="muted">${c.u}</small></div><div class="grow"><b>${esc(r.name)}</b><br><small class="muted">${esc(shortDate(r.date, true))}${r.goal ? ` · goal ${esc(r.goal)}` : ''}</small></div>${priDot(r.priority)}</div>`; }).join('') : '<p class="muted">No races planned.</p>'}${dv.conflicts.map((c) => `<div class="notice warn" style="margin-top:8px">${esc(c.message)}</div>`).join('')}</div>
+    <div class="card"><h2>History</h2>${timelineHTML(d.timeline.slice(0, 8))}</div>
+  </div>`;
   el.querySelector('[data-flag-task]')?.addEventListener('click', async () => {
     const r = await dialog({ title: 'Create task from flag', body: field('Flag', 'i', 0, { type: 'select', opts: dv.flags.map((f, i) => [i, f.message.slice(0, 110)]) }) + field('Due', 'due_date', calc.addDays(dv.today, 2), { type: 'date' }) });
     if (!r) return;
@@ -57,14 +77,18 @@ function tabSummary(el, d) {
   });
 }
 
+function fmtThresholdBig(v) {
+  if (v.unit === 's/100m' || v.unit === 's/km') return `${calc.formatDuration(v.value)}<span class="unit">${esc(v.unit.replace('s/', '/'))}</span>`;
+  return `${esc(v.value)}<span class="unit">${esc(v.unit)}</span>`;
+}
+
 function fmtThreshold(v) {
   if (v.unit === 's/100m' || v.unit === 's/km') return `${calc.formatDuration(v.value)} ${v.unit.replace('s/', '/')}`;
   return `${v.value} ${esc(v.unit)}`;
 }
 
 export function timelineHTML(items) {
-  const colors = { test: 'blue', race: 'red', plan: 'amber', interruption: 'red', import: '' };
-  return items.length ? items.map((t) => `<div class="list-item"><small class="mono" style="min-width:86px">${esc(t.date)}</small><span class="badge ${colors[t.kind] || ''}">${esc(t.kind)}</span><div class="grow" style="white-space:pre-wrap">${esc(t.text)}${t.shareable ? ' <span class="badge green">shareable</span>' : ''}</div></div>`).join('') : '<p class="muted">Nothing yet. Notes, tests, results and plan changes appear here.</p>';
+  return items.length ? `<div class="tl">${items.map((t) => `<div class="tl-item ${esc(t.kind)}"><div class="when">${esc(shortDate(t.date, true))} · ${esc(cap(t.kind))}</div><div class="txt">${esc(t.text)}${t.shareable ? ' <span class="badge green">shareable</span>' : ''}</div></div>`).join('')}</div>` : '<p class="muted">Nothing yet. Notes, tests, results and plan changes appear here.</p>';
 }
 
 // ---------------- Profile ----------------

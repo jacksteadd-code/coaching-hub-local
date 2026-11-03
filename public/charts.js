@@ -16,31 +16,35 @@ function niceMax(v) {
 export function weeklyHoursChart(weeks, { height = 240 } = {}) {
   const W = 820;
   const H = height;
-  const pad = { l: 34, r: 8, t: 10, b: 28 };
+  const pad = { l: 36, r: 8, t: 10, b: 28 };
   const max = niceMax(Math.max(1, ...weeks.map((w) => Math.max(w.completedHours || 0, w.plannedHours || 0))));
   const bw = (W - pad.l - pad.r) / weeks.length;
   const y = (v) => H - pad.b - (v / max) * (H - pad.t - pad.b);
-  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Weekly planned and completed hours"><defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="var(--border)" stroke-width="3"/></pattern></defs>`;
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Weekly planned and completed hours"><defs><pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="var(--planned)" stroke-width="2"/></pattern></defs>`;
   for (let i = 0; i <= 4; i++) {
     const v = (max / 4) * i;
-    s += `<line x1="${pad.l}" x2="${W - pad.r}" y1="${y(v)}" y2="${y(v)}" stroke="var(--border)" stroke-width="1"/><text x="${pad.l - 6}" y="${y(v) + 4}" text-anchor="end">${+v.toFixed(1)}</text>`;
+    s += `<line x1="${pad.l}" x2="${W - pad.r}" y1="${y(v)}" y2="${y(v)}" stroke="var(--hair)" stroke-width="1"/><text x="${pad.l - 8}" y="${y(v) + 4}" text-anchor="end">${+v.toFixed(1)}</text>`;
   }
   weeks.forEach((w, i) => {
     const x = pad.l + i * bw + bw * 0.15;
     const bwi = bw * 0.7;
     const tip = `${w.week}: ${w.completedHours == null ? 'no data' : w.completedHours.toFixed(1) + ' h done'}${w.plannedHours != null ? `, ${w.plannedHours.toFixed(1)} h planned` : ''}${w.source && w.source !== 'missing' ? ` (${w.source})` : ''}`;
     s += `<g><title>${esc(tip)}</title>`;
-    if (w.plannedHours != null) s += `<rect x="${x - 2}" y="${y(w.plannedHours)}" width="${bwi + 4}" height="${y(0) - y(w.plannedHours)}" fill="none" stroke="var(--planned)" stroke-width="2" stroke-dasharray="3 2" rx="2"/>`;
+    if (w.plannedHours != null) s += `<rect x="${x}" y="${y(w.plannedHours)}" width="${bwi}" height="${y(0) - y(w.plannedHours)}" fill="var(--planned)" opacity="0.45" rx="6"/>`;
     if (w.completedHours == null) {
-      s += `<rect x="${x}" y="${y(max * 0.12)}" width="${bwi}" height="${y(0) - y(max * 0.12)}" fill="url(#hatch)" rx="2"/>`;
+      s += `<rect x="${x}" y="${y(max * 0.12)}" width="${bwi}" height="${y(0) - y(max * 0.12)}" fill="url(#hatch)" rx="6"/>`;
     } else {
       let acc = 0;
+      const total = ['swim', 'bike', 'run', 'strength', 'other'].reduce((t, sp) => t + (w.completedBySport?.[sp] || 0), 0);
+      const clip = `c${i}${Math.random().toString(36).slice(2, 7)}`;
+      if (total) s += `<clipPath id="${clip}"><rect x="${x}" y="${y(total)}" width="${bwi}" height="${y(0) - y(total)}" rx="6"/></clipPath><g clip-path="url(#${clip})">`;
       for (const sp of ['swim', 'bike', 'run', 'strength', 'other']) {
         const v = w.completedBySport?.[sp];
         if (!v) continue;
-        s += `<rect x="${x}" y="${y(acc + v)}" width="${bwi}" height="${y(acc) - y(acc + v)}" fill="${SPORT_COLORS[sp]}"/>`;
+        s += `<rect x="${x}" y="${y(acc + v)}" width="${bwi}" height="${y(acc) - y(acc + v) + 0.5}" fill="${SPORT_COLORS[sp]}"/>`;
         acc += v;
       }
+      if (total) s += '</g>';
       if (!acc && w.completedHours === 0) s += `<rect x="${x}" y="${y(0) - 2}" width="${bwi}" height="2" fill="var(--muted)"/>`;
     }
     s += '</g>';
@@ -51,7 +55,7 @@ export function weeklyHoursChart(weeks, { height = 240 } = {}) {
 
 export function chartLegend(extra = []) {
   const items = [['swim', 'Swim'], ['bike', 'Bike'], ['run', 'Run'], ['strength', 'Strength'], ['other', 'Other']].map(([k, l]) => `<span><i style="background:${SPORT_COLORS[k]}"></i>${l}</span>`);
-  items.push('<span><i style="border:2px dashed var(--planned);background:none"></i>Planned</span>', '<span><i style="background:repeating-linear-gradient(45deg,var(--border),var(--border) 2px,transparent 2px,transparent 4px)"></i>No data</span>');
+  items.push('<span><i style="background:var(--planned);opacity:.6"></i>Planned</span>', '<span><i style="background:repeating-linear-gradient(45deg,var(--border),var(--border) 2px,transparent 2px,transparent 4px)"></i>No data</span>');
   return `<div class="legend">${items.concat(extra).join('')}</div>`;
 }
 
@@ -78,7 +82,7 @@ export function lineChart(series, { height = 200, yLabel = '', step = false, yMi
   let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(yLabel)}">`;
   for (let i = 0; i <= 3; i++) {
     const v = lo + ((hi - lo) / 3) * i;
-    s += `<line x1="${pad.l}" x2="${W - pad.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--border)"/><text x="${pad.l - 6}" y="${Y(v) + 4}" text-anchor="end">${Math.round(v * 10) / 10}</text>`;
+    s += `<line x1="${pad.l}" x2="${W - pad.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--hair)"/><text x="${pad.l - 6}" y="${Y(v) + 4}" text-anchor="end">${Math.round(v * 10) / 10}</text>`;
   }
   s += `<text x="${pad.l}" y="${H - 8}">${new Date(x0).toISOString().slice(0, 10)}</text><text x="${W - pad.r}" y="${H - 8}" text-anchor="end">${new Date(x1).toISOString().slice(0, 10)}</text>`;
   for (const se of series) {

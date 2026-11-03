@@ -131,3 +131,32 @@ export function flagList(flags, max = 99) {
 
 export const SPORTS = ['swim', 'bike', 'run', 'strength', 'other'];
 export const PHASE_COLORS = ['#94a3b8', '#60a5fa', '#2563eb', '#7c3aed', '#f59e0b', '#dc2626', '#10b981', '#0ea5e9', '#a3a3a3'];
+
+// Activity-style completion ring. `value` is 0..1 (or null for no data).
+export function ring(value, { size = 64, stroke = 7, label, color } = {}) {
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const v = value == null ? 0 : Math.max(0, Math.min(1, value));
+  const col = color || (value == null ? 'var(--planned)' : value < 0.7 ? 'var(--warn)' : 'var(--ok)');
+  const text = label ?? (value == null ? '—' : `${Math.round(value * 100)}%`);
+  return `<svg class="ring" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" aria-label="${esc(text)}"><circle class="track" cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke-width="${stroke}"/>${v ? `<circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="none" stroke="${col}" stroke-width="${stroke}" stroke-linecap="round" stroke-dasharray="${(c * v).toFixed(1)} ${c.toFixed(1)}" transform="rotate(-90 ${size / 2} ${size / 2})"/>` : ''}<text x="50%" y="50%" text-anchor="middle" dominant-baseline="central" font-size="${Math.round(size * 0.24)}">${esc(text)}</text></svg>`;
+}
+
+// Big countdown for a race: number + unit.
+export function countdownParts(cd) {
+  if (!cd) return { n: '—', u: '' };
+  if (cd.days === 0) return { n: '0', u: 'race day' };
+  if (cd.days < 0) return { n: String(-cd.days), u: 'days ago' };
+  if (cd.days < 21) return { n: String(cd.days), u: cd.days === 1 ? 'day' : 'days' };
+  return { n: String(cd.weeks), u: 'weeks' };
+}
+
+export const priDot = (p) => `<span class="pri ${esc(p)}" title="${esc(p)} race">${esc(p)}</span>`;
+
+// "2026-11-08" -> "8 Nov"
+export function shortDate(iso, withYear = false) {
+  if (!iso) return '';
+  const d = new Date(iso + 'T12:00:00Z');
+  if (Number.isNaN(+d)) return iso;
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', ...(withYear ? { year: 'numeric' } : {}), timeZone: 'UTC' });
+}

@@ -367,7 +367,7 @@ class Service {
     const today = this.today();
     const athletes = this.listAthletes().filter((a) => a.status === 'active');
     const attention = athletes
-      .map((a) => ({ id: a.id, name: a.preferred_name || a.name, is_sample: a.is_sample, flags: a.flags, score: a.flags.reduce((s, f) => s + SEVERITY[f.severity], 0) }))
+      .map((a) => ({ id: a.id, name: a.preferred_name || a.name, photo_id: a.photo_id, is_sample: a.is_sample, flags: a.flags, score: a.flags.reduce((s, f) => s + SEVERITY[f.severity], 0) }))
       .filter((a) => a.flags.length)
       .sort((x, y) => y.score - x.score);
     const horizon = calc.addDays(today, 56);
@@ -376,7 +376,7 @@ class Service {
     const tasks = this.db.prepare(`SELECT t.*, a.name AS athlete_name FROM tasks t LEFT JOIN athletes a ON a.id = t.athlete_id WHERE t.done = 0 AND (t.due_date IS NULL OR t.due_date <= ?) ORDER BY t.due_date IS NULL, t.due_date LIMIT 30`).all(weekEnd).map((t) => ({ ...t }));
     const week = calc.addDays(calc.weekStart(today), -7);
     const reviewed = this.db.prepare('SELECT COUNT(*) AS n FROM weekly_logs l JOIN athletes a ON a.id = l.athlete_id WHERE l.week_start = ? AND l.reviewed_at IS NOT NULL AND a.status = ?').get(week, 'active').n;
-    const compare = athletes.map((a) => ({ id: a.id, name: a.preferred_name || a.name, is_sample: a.is_sample, last: a.lastWeek, phase: a.phase }));
+    const compare = athletes.map((a) => ({ id: a.id, name: a.preferred_name || a.name, photo_id: a.photo_id, is_sample: a.is_sample, last: a.lastWeek, phase: a.phase }));
     const birthdays = athletes.filter((a) => a.birthday).map((a) => ({ id: a.id, name: a.preferred_name || a.name, ...calc.nextBirthday(a.birthday, today) })).filter((b) => b.inDays <= 14).sort((x, y) => x.inDays - y.inDays);
     return { today, weekEnd, attention, races, tasks, review: { week, reviewed, total: athletes.length }, compare, birthdays, counts: { active: athletes.length, sample: athletes.filter((a) => a.is_sample).length } };
   }

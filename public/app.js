@@ -1,4 +1,4 @@
-import { api, esc, toast, attempt, dialog, confirmDialog, field, hrs, pct, cap, avatar, sampleBadge, statusBadge, sourceBadge, flagList, calc } from './ui.js';
+import { api, esc, toast, attempt, dialog, confirmDialog, field, hrs, pct, cap, avatar, sampleBadge, statusBadge, sourceBadge, flagList, calc, ring, countdownParts, priDot, shortDate } from './ui.js';
 import { renderAthlete, taskDialog } from './athlete.js';
 import { renderPlanner, renderReview } from './planner.js';
 
@@ -82,28 +82,34 @@ async function renderOverview() {
     return;
   }
   const att = o.attention;
+  const hour = new Date().getHours();
+  const greet = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+  const todayLong = new Date(o.today + 'T12:00:00Z').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
+  const overdue = o.tasks.filter((t) => t.due_date && t.due_date < o.today).length;
+  const revPct = o.review.total ? o.review.reviewed / o.review.total : 0;
+  const high = (a) => a.flags.some((f) => f.severity === 'high');
   main().innerHTML = `
-  <div class="page-head"><div><h1>This week</h1><small>Today is ${esc(o.today)} · ${o.counts.active} active athletes${o.counts.sample ? ` (${o.counts.sample} sample)` : ''}</small></div>
+  <div class="page-head"><div><div class="eyebrow">${esc(todayLong)}</div><h1>${greet}</h1><small>${o.counts.active} active athletes${o.counts.sample ? ` · ${o.counts.sample} sample` : ''}</small></div>
     <div class="row"><button data-note>Quick note</button><button data-task>Add task</button><a class="btn primary" href="#/review">Start weekly review</a></div></div>
-  ${recentImports.length ? `<div class="card" style="margin-bottom:16px${failedImports.length ? ';border-color:var(--warn)' : ''}"><h2>Automatic imports this week <small>${recentImports.length - failedImports.length} imported${failedImports.length ? `, ${failedImports.length} need attention` : ''}</small></h2>${importLogHTML(recentImports, 5)}<p><small><a href="#/settings">Import folder settings</a></small></p></div>` : ''}
-  <div class="grid g4" style="margin-bottom:16px">
-    <div class="card"><div class="stat">${att.length}</div><div class="stat-label">athletes need attention</div></div>
-    <div class="card"><div class="stat">${o.review.reviewed}/${o.review.total}</div><div class="stat-label">reviews done for week of ${esc(o.review.week)}</div><div class="progress" style="margin-top:6px"><span style="width:${o.review.total ? (o.review.reviewed / o.review.total) * 100 : 0}%"></span></div></div>
-    <div class="card"><div class="stat">${o.races.length}</div><div class="stat-label">races in the next 8 weeks</div></div>
-    <div class="card"><div class="stat">${o.tasks.filter((t) => t.due_date && t.due_date < o.today).length}</div><div class="stat-label">overdue tasks</div></div>
+  <div class="tiles">
+    <div class="tile ${att.length ? 'warn' : 'good'}"><div class="eyebrow">Need attention</div><div class="stat">${att.length}</div><div class="stat-label">${att.length === 1 ? 'athlete' : 'athletes'}</div></div>
+    <a class="tile ring-tile" href="#/review">${ring(revPct, { size: 76, stroke: 8, label: `${o.review.reviewed}/${o.review.total}`, color: 'var(--accent)' })}<div><div class="eyebrow" style="margin-bottom:4px">Reviews</div><div class="stat-label" style="margin:0">week of ${esc(shortDate(o.review.week))}</div></div></a>
+    <a class="tile" href="#/races"><div class="eyebrow">Races</div><div class="stat">${o.races.length}</div><div class="stat-label">in the next 8 weeks</div></a>
+    <a class="tile ${overdue ? 'bad' : ''}" href="#/tasks"><div class="eyebrow">Overdue</div><div class="stat">${overdue}</div><div class="stat-label">${overdue === 1 ? 'task' : 'tasks'}</div></a>
   </div>
+  ${recentImports.length ? `<div class="card" style="margin-bottom:20px${failedImports.length ? ';box-shadow:inset 0 0 0 2px var(--warn)' : ''}"><h2>Imports this week <small>${recentImports.length - failedImports.length} imported${failedImports.length ? `, ${failedImports.length} need attention` : ''}</small></h2>${importLogHTML(recentImports, 5)}</div>` : ''}
   <div class="grid g2">
-    <div class="card"><h2>Needs attention</h2>${att.length ? att.map((a) => `<div style="margin-bottom:12px"><div class="row"><a href="#/athletes/${a.id}"><b>${esc(a.name)}</b></a>${sampleBadge(a)}</div>${flagList(a.flags, 4)}</div>`).join('') : '<p class="muted">Nothing flagged. Every active athlete is up to date.</p>'}</div>
+    <div class="card" id="attention"><h2>Needs attention</h2>${att.length ? att.map((a) => `<div class="alert-row">${avatar(a)}<div class="what"><a href="#/athletes/${a.id}" style="color:inherit"><b>${esc(a.preferred_name || a.name)}${sampleBadge(a)}</b></a><span>${esc(a.flags[0]?.message || '')}</span>${a.flags.length ? `<details class="more"><summary>${a.flags.length === 1 ? 'What to do' : `See all ${a.flags.length}`}</summary><div class="flags-compact">${flagList(a.flags)}</div></details>` : ''}</div><span class="badge ${high(a) ? 'red' : 'amber'}">${a.flags.length}</span></div>`).join('') : '<p class="muted"><span class="ok-mark">✓</span> All clear. Every active athlete is up to date.</p>'}</div>
     <div class="grid" style="align-content:start">
-      <div class="card"><h2>To do this week <a class="btn small" href="#/tasks">All tasks</a></h2>${o.tasks.length ? o.tasks.map(taskRow).join('') : '<p class="muted">No tasks due this week.</p>'}</div>
-      <div class="card"><h2>Upcoming races</h2>${o.races.length ? `<table>${o.races.map((r) => `<tr><td><span class="badge ${r.priority === 'A' ? 'red' : r.priority === 'B' ? 'amber' : ''}">${r.priority}</span></td><td><b>${esc(r.name)}</b><br><small><a href="#/athletes/${r.athlete_id}/races">${esc(r.preferred_name || r.athlete_name)}</a> · ${esc(r.date)}</small></td><td style="text-align:right;white-space:nowrap">${esc(r.countdown.label)}</td></tr>`).join('')}</table>` : '<p class="muted">No races in the next 8 weeks.</p>'}</div>
-      ${o.birthdays.length ? `<div class="card"><h2>Birthdays</h2>${o.birthdays.map((b) => `<div class="list-item"><div class="grow"><a href="#/athletes/${b.id}">${esc(b.name)}</a></div><small>${b.inDays === 0 ? 'today' : `in ${b.inDays} days (${b.date.slice(5)})`}</small></div>`).join('')}</div>` : ''}
+      <div class="card"><h2>Coming up <a class="btn small" href="#/races">All races</a></h2>${o.races.length ? o.races.map((r) => { const c = countdownParts(r.countdown); return `<div class="race-row"><div class="count"><b>${c.n}</b><small class="muted">${c.u}</small></div><div class="grow"><b>${esc(r.name)}</b><br><small><a href="#/athletes/${r.athlete_id}/races">${esc(r.preferred_name || r.athlete_name)}</a> · ${esc(shortDate(r.date))}</small></div>${priDot(r.priority)}</div>`; }).join('') : '<p class="muted">No races in the next 8 weeks.</p>'}
+      ${o.birthdays.length ? o.birthdays.map((b) => `<div class="race-row"><div class="count"><b>${b.inDays}</b><small class="muted">${b.inDays === 1 ? 'day' : 'days'}</small></div><div class="grow">🎂 <a href="#/athletes/${b.id}">${esc(b.name)}</a>'s birthday<br><small>${esc(shortDate(b.date))}</small></div></div>`).join('') : ''}</div>
+      <div class="card"><h2>To do <a class="btn small" href="#/tasks">All tasks</a></h2>${o.tasks.length ? o.tasks.map(taskRow).join('') : '<p class="muted">Nothing due this week.</p>'}</div>
     </div>
   </div>
-  <div class="card flush" style="margin-top:16px"><div style="padding:16px 16px 0"><h2>Last week: planned vs completed <small>week of ${esc(o.review.week)}</small></h2></div>
-    <div class="table-wrap"><table><thead><tr><th>Athlete</th><th>Phase</th><th>Planned</th><th>Completed</th><th>%</th><th>Data</th></tr></thead><tbody>
-    ${o.compare.map((c) => `<tr class="clickable" data-go="#/review/${o.review.week}/${c.id}"><td>${esc(c.name)}${sampleBadge(c)}</td><td>${esc(c.phase || '—')}</td><td>${hrs(c.last?.plannedHours)}</td><td>${hrs(c.last?.completedHours)}</td><td><div class="weekbar">${c.last?.compliance != null ? `<div class="progress" style="width:70px"><span style="width:${Math.min(100, c.last.compliance * 100)}%;${c.last.compliance < 0.7 ? 'background:var(--warn)' : ''}"></span></div>` : ''}${pct(c.last?.compliance)}</div></td><td>${sourceBadge(c.last?.source)}</td></tr>`).join('')}
-    </tbody></table></div></div>`;
+  <div class="section-title"><span>Last week <small class="muted">planned vs done</small></span><small class="muted">week of ${esc(shortDate(o.review.week))}</small></div>
+  <div class="card"><div class="week-grid">
+    ${o.compare.map((c) => `<div class="week-cell" data-go="#/review/${o.review.week}/${c.id}">${ring(c.last?.compliance ?? null, { size: 84, stroke: 8 })}<b>${esc(c.name)}</b><small class="muted">${c.last?.completedHours != null ? `${hrs(c.last.completedHours)} of ${hrs(c.last?.plannedHours)}` : 'No data'}</small></div>`).join('')}
+  </div></div>`;
   wireCommon();
   main().querySelector('[data-note]').onclick = quickNote;
   main().querySelector('[data-task]').onclick = () => taskDialog({}).then((r) => r && route());
@@ -112,7 +118,7 @@ async function renderOverview() {
 export function taskRow(t) {
   const today = calc.todayIn(Intl.DateTimeFormat().resolvedOptions().timeZone);
   const overdue = !t.done && t.due_date && t.due_date < today;
-  return `<div class="list-item"><input type="checkbox" data-done="${t.id}" ${t.done ? 'checked' : ''} aria-label="Mark done" style="margin-top:4px"><div class="grow"><span ${t.done ? 'style="text-decoration:line-through;color:var(--muted)"' : ''}>${esc(t.title)}</span> <span class="badge">${esc(t.kind)}</span><br><small>${t.athlete_id ? `<a href="#/athletes/${t.athlete_id}/notes">${esc(t.athlete_name || '')}</a> · ` : 'Business · '}${t.due_date ? `<span style="${overdue ? 'color:var(--danger);font-weight:600' : ''}">${overdue ? 'Overdue: ' : 'Due '}${esc(t.due_date)}${t.due_time ? ' ' + esc(t.due_time) : ''}</span>` : 'No date'}${t.owner && t.owner !== 'Jack' ? ' · ' + esc(t.owner) : ''}</small></div><button class="small link" data-edit-task="${t.id}">Edit</button></div>`;
+  return `<div class="list-item"><input type="checkbox" data-done="${t.id}" ${t.done ? 'checked' : ''} aria-label="Mark done" style="margin-top:4px"><div class="grow"><span ${t.done ? 'style="text-decoration:line-through;color:var(--muted)"' : ''}>${esc(t.title)}</span> <span class="badge">${esc(t.kind)}</span><br><small>${t.athlete_id ? `<a href="#/athletes/${t.athlete_id}/notes">${esc(t.athlete_name || '')}</a> · ` : 'Business · '}${t.due_date ? `<span style="${overdue ? 'color:var(--danger);font-weight:600' : ''}">${overdue ? 'Overdue · ' : 'Due '}${esc(shortDate(t.due_date))}${t.due_time ? ' ' + esc(t.due_time) : ''}</span>` : 'No date'}${t.owner && t.owner !== 'Jack' ? ' · ' + esc(t.owner) : ''}</small></div><button class="small link" data-edit-task="${t.id}">Edit</button></div>`;
 }
 
 // Delegated handlers shared by several pages.
@@ -138,7 +144,7 @@ async function quickNote() {
 }
 
 // ---------------- Athletes ----------------
-let listState = { q: '', sport: '', status: 'active', phase: '', review: '', view: 'table', sort: 'name', dir: 1 };
+let listState = { q: '', sport: '', status: 'active', phase: '', review: '', view: 'cards', sort: 'name', dir: 1 };
 try { Object.assign(listState, JSON.parse(localStorage.getItem('athleteList') || '{}')); } catch { /* ignore */ }
 
 export async function addAthlete() {
@@ -228,9 +234,14 @@ function rowHTML(a) {
 
 function cardHTML(a) {
   const lw = a.lastWeek;
-  return `<div class="card ath-card" data-go="#/athletes/${a.id}"><div class="name-cell">${avatar(a)}<div class="grow"><b>${esc(a.name)}</b>${sampleBadge(a)}${a.billing === 'free' ? ' <span class="badge">Free</span>' : ''}<br><small>${esc(cap(a.sport))} · ${a.coaching ? esc(a.coaching.label) : ''}</small></div>${statusBadge(a.status)}</div>
-  <dl class="kv" style="margin-top:12px"><dt>Goal</dt><dd>${esc(a.goals || '—')}</dd><dt>Next race</dt><dd>${a.nextRace ? `${esc(a.nextRace.name)} (${a.nextRace.priority}) · ${esc(a.nextRace.countdown.label)}` : '—'}</dd><dt>Phase</dt><dd>${esc(a.phase || '—')}</dd><dt>Last week</dt><dd>${lw && lw.completedHours != null ? `${hrs(lw.completedHours)} / ${hrs(lw.plannedHours)}` : 'No data'}</dd><dt>Check-in</dt><dd>${esc(a.lastCheckin || '—')}</dd></dl>
-  ${a.flags.length ? `<div style="margin-top:8px">${flagList(a.flags, 2)}</div>` : ''}</div>`;
+  const has = lw && lw.completedHours != null;
+  const c = a.nextRace ? countdownParts(a.nextRace.countdown) : null;
+  const flags = a.flags.length;
+  return `<div class="card ath-card" data-go="#/athletes/${a.id}">
+  <div class="top">${avatar(a)}<div class="grow"><b>${esc(a.preferred_name || a.name)}</b>${sampleBadge(a)}<br><small>${esc(a.phase || cap(a.sport))}</small></div>${flags ? `<span class="badge ${a.flags.some((f) => f.severity === 'high') ? 'red' : 'amber'}" title="${esc(a.flags.map((f) => '• ' + f.message).join('\n'))}">${flags} ${flags === 1 ? 'flag' : 'flags'}</span>` : '<span class="ok-mark" title="Nothing flagged">✓</span>'}</div>
+  <div class="mid">${ring(has ? lw.compliance : null, { size: 64, stroke: 7 })}<div class="grow"><div class="eyebrow" style="font-size:.68rem">Last week</div><b style="font-size:1.15rem">${has ? hrs(lw.completedHours) : 'No data'}</b><small class="muted">${has ? `of ${hrs(lw.plannedHours)} planned` : ''}</small></div>
+    ${c ? `<div style="text-align:right"><div class="eyebrow" style="font-size:.68rem">${esc(a.nextRace.priority)} race</div><b style="font-size:1.6rem;letter-spacing:-.04em;line-height:1">${c.n}</b> <small class="muted">${c.u}</small></div>` : ''}</div>
+  <div class="foot">${a.nextRace ? `<span>🏁 ${esc(a.nextRace.name)}</span>` : '<span>No race planned</span>'}${a.billing === 'free' ? '<span class="badge right">Free</span>' : ''}${a.status !== 'active' ? statusBadge(a.status) : ''}</div></div>`;
 }
 
 // ---------------- Races ----------------
