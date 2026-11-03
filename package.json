@@ -1,6 +1,6 @@
 {
   "name": "coaching-hub",
-  "version": "1.4.1",
+  "version": "1.5.0",
   "private": true,
   "description": "Personal endurance coaching tool that runs locally on your Mac.",
   "scripts": {

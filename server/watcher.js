@@ -2,7 +2,8 @@
 // Automatic import folder. Any .csv or .zip saved into the folder (for example
 // a TrainingPeaks workouts export) is imported into the athlete whose name is
 // in the file name, then moved into "Imported". Files that can't be matched or
-// read are moved into "Needs attention" and listed in the app.
+// read are moved into "Needs attention" and listed in the app. A .chathlete
+// file (see athletefile.js) adds profile details, races, tests and notes.
 //
 // The folder lives directly in the home folder, not in Documents, Desktop or
 // Downloads: macOS blocks background programs from those folders unless they
@@ -12,12 +13,13 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const importer = require('./importer');
+const athletefile = require('./athletefile');
 
 const DONE = 'Imported';
 const FAILED = 'Needs attention';
 const SETTLE_MS = 5000; // ignore files that are still being written
 const zlib = require('node:zlib');
-const FILE_RE = /\.(csv|zip)$/i;
+const FILE_RE = /\.(csv|zip|chathlete)$/i;
 
 function defaultFolder(home = os.homedir()) {
   return path.join(home, 'Coaching Hub Imports');
@@ -143,7 +145,7 @@ function moveTo(folder, sub, file) {
   return target;
 }
 
-// Process every settled .csv in the folder. Returns the log entries written.
+// Process every settled .csv, .zip and .chathlete file in the folder. Returns the log entries written.
 function processFolder(svc, folder, { now = Date.now() } = {}) {
   fs.mkdirSync(folder, { recursive: true });
   const files = fs.readdirSync(folder).filter((f) => FILE_RE.test(f) && !f.startsWith('.'));
@@ -164,6 +166,21 @@ function processFolder(svc, folder, { now = Date.now() } = {}) {
       entry.athlete = m.athlete.name;
       entry.athlete_id = m.athlete.id;
       try {
+        if (/\.chathlete$/i.test(f)) {
+          const p = athletefile.parse(fs.readFileSync(file, 'utf8'));
+          const r = athletefile.apply(svc, m.athlete.id, p);
+          let w = null;
+          if (p.workouts_csv) {
+            w = svc.importCommit(m.athlete.id, { csv: p.workouts_csv, filename: f, mapping: optionalColumns(p.workouts_csv) });
+            entry.import_id = w.importId;
+          }
+          entry.ok = true;
+          entry.athlete = svc.get('athletes', m.athlete.id).name;
+          entry.message = `Athlete update: ${athletefile.summary(r, w)}`;
+          try { moveTo(folder, DONE, file); } catch (e) { entry.message += ` (couldn't move the file: ${e.message})`; }
+          entries.push(entry);
+          continue;
+        }
         const csv = readWorkoutsCsv(file);
         const r = svc.importCommit(m.athlete.id, { csv, filename: f, mapping: optionalColumns(csv) });
         entry.ok = true;

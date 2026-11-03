@@ -529,7 +529,7 @@ async function updatesCard(el) {
 async function autoImportCard(el) {
   const a = await api('GET', '/api/autoimport');
   el.innerHTML = `<h2>Automatic import ${a.enabled ? '<span class="badge green">On</span>' : '<span class="badge">Off</span>'}</h2>
-    <p>Save a TrainingPeaks workouts export (.zip or .csv) into this folder and it's imported within a minute. Put the athlete's name in the file name, for example <b>Kieran Masters.zip</b>. A first name is enough when only one athlete has it, and small spelling differences are fine.</p>
+    <p>Save a TrainingPeaks workouts export (.zip or .csv) into this folder and it's imported within a minute. Put the athlete's name in the file name, for example <b>Kieran Masters.zip</b>. A first name is enough when only one athlete has it, and small spelling differences are fine. An athlete update file (<b>.chathlete</b>) saved here adds profile details, races, tests and notes to that athlete only, and never overwrites what is already there.</p>
     ${a.error ? `<div class="notice" style="border-color:var(--danger)"><b>Can't check the folder:</b> ${esc(a.error)}</div>` : ''}
     <p><small class="mono">${esc(a.folder)}</small></p>
     <div class="row"><button class="primary" data-aiopen>Open the folder</button><button data-airun>Check now</button><button data-aitoggle>${a.enabled ? 'Switch off' : 'Switch on'}</button></div>

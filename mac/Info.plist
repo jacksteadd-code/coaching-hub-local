@@ -5,8 +5,8 @@
   <key>CFBundleName</key><string>Coaching Hub</string>
   <key>CFBundleDisplayName</key><string>Coaching Hub</string>
   <key>CFBundleIdentifier</key><string>local.coaching-hub</string>
-  <key>CFBundleVersion</key><string>1.4.1</string>
-  <key>CFBundleShortVersionString</key><string>1.4</string>
+  <key>CFBundleVersion</key><string>1.5.0</string>
+  <key>CFBundleShortVersionString</key><string>1.5</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleExecutable</key><string>CoachingHub</string>
   <key>CFBundleIconFile</key><string>AppIcon</string>
