@@ -87,6 +87,8 @@ function alreadyRunning() {
     const update = () => app.autoUpdate().then((r) => r && r.installed && console.log(`Updated to ${r.version}`)).catch((e) => console.error('Update check failed:', e.message));
     setTimeout(update, 60 * 1000).unref();
     setInterval(() => { run(); sync(); update(); }, 3600 * 1000).unref();
+    // The app was reinstalled while this server was running: restart into the new code.
+    if (underLaunchd) setInterval(() => { if (app.codeChanged()) { console.log('New app files found, restarting'); restart(); } }, 60 * 1000).unref();
   });
   app.server.on('error', (e) => {
     console.error(e.code === 'EADDRINUSE' ? `Port ${PORT} is in use by another program. Set PORT=4748 and try again.` : e.message);

@@ -503,7 +503,14 @@ export function importLogHTML(log, n = 8) {
 }
 
 async function updatesCard(el) {
-  const u = await api('GET', '/api/updates');
+  let u;
+  try {
+    u = await api('GET', '/api/updates');
+  } catch (e) {
+    if (e.status !== 404) throw e;
+    el.innerHTML = `<h2>App updates</h2><div class="notice">An older copy of Coaching Hub is still running in the background. Restart your Mac (Apple menu → Restart), then open Coaching Hub from Applications.</div>`;
+    return;
+  }
   const when = (x) => (x ? new Date(x).toLocaleString() : 'never');
   el.innerHTML = `<h2>App updates ${u.auto ? '<span class="badge green">Automatic</span>' : '<span class="badge">Manual</span>'}</h2>
     <p>You're on version <b>${esc(u.version)}</b>.${u.lastUpdated ? ` Last updated to ${esc(u.lastUpdatedVersion)} on ${esc(when(u.lastUpdated))}.` : ''}</p>
@@ -527,7 +534,14 @@ async function updatesCard(el) {
 }
 
 async function autoImportCard(el) {
-  const a = await api('GET', '/api/autoimport');
+  let a;
+  try {
+    a = await api('GET', '/api/autoimport');
+  } catch (e) {
+    if (e.status !== 404) throw e;
+    el.innerHTML = `<h2>Automatic import</h2><div class="notice">An older copy of Coaching Hub is still running in the background. Restart your Mac, then open Coaching Hub from Applications.</div>`;
+    return;
+  }
   el.innerHTML = `<h2>Automatic import ${a.enabled ? '<span class="badge green">On</span>' : '<span class="badge">Off</span>'}</h2>
     <p>Save a TrainingPeaks workouts export (.zip or .csv) into this folder and it's imported within a minute. Put the athlete's name in the file name, for example <b>Kieran Masters.zip</b>. A first name is enough when only one athlete has it, and small spelling differences are fine. An athlete update file (<b>.chathlete</b>) saved here adds profile details, races, tests and notes to that athlete only, and never overwrites what is already there.</p>
     ${a.error ? `<div class="notice" style="border-color:var(--danger)"><b>Can't check the folder:</b> ${esc(a.error)}</div>` : ''}
@@ -543,7 +557,7 @@ async function autoImportCard(el) {
 
 async function locationCard(el) {
   const l = await api('GET', '/api/location');
-  const quit = `<p style="margin-top:14px"><button data-quit>Quit Coaching Hub</button> <small>Stops the app on this Mac. Open it again from Applications or the Dock.</small></p>`;
+  const quit = `<p style="margin-top:14px"><button data-quit>Quit Coaching Hub</button> <small>Stops the app on this Mac. Open it again from Applications.</small></p>`;
   if (l.shared) {
     el.innerHTML = `<h2>Use on more than one Mac <span class="badge green">iCloud Drive</span></h2>
       <p>Your data is in iCloud Drive, so this Mac and your other Macs share the same athletes. Use it on one Mac at a time. If it's open on another Mac, you'll be asked to close it there first.</p>
@@ -563,7 +577,7 @@ async function locationCard(el) {
   if (q('[data-local]')) q('[data-local]').onclick = async () => { if (await confirmDialog('Keep data on this Mac only', 'Copy the shared data back to this Mac and stop using iCloud Drive here? Your other Mac keeps using iCloud Drive.', 'Copy back')) go('/api/location/local', {}, 'Your data is now on this Mac only'); };
   q('[data-quit]').onclick = async () => {
     const r = await api('POST', '/api/quit').catch((e) => { toast(e.message, true); return null; });
-    if (r) document.body.innerHTML = '<div style="max-width:480px;margin:80px auto;font-family:system-ui;text-align:center"><h1>Coaching Hub has stopped</h1><p>You can close this tab. Open Coaching Hub again from Applications or the Dock.</p></div>';
+    if (r) document.body.innerHTML = '<div style="max-width:480px;margin:80px auto;font-family:system-ui;text-align:center"><h1>Coaching Hub has stopped</h1><p>You can close this tab. Open Coaching Hub again from Applications (the Dock icon only opens the window).</p></div>';
   };
 }
 

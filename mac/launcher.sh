@@ -48,6 +48,16 @@ fi
 up || launchctl kickstart "gui/$(id -u)/$LABEL" 2>/dev/null || launchctl bootstrap "gui/$(id -u)" "$PLIST" 2>/dev/null
 for i in $(seq 1 40); do up && break; sleep 0.25; done
 
+# If the running server is an older version than the files in this app (for
+# example the app was reinstalled while it was running), restart it.
+WANT="$(sed -n 's/.*"version": *"\([^"]*\)".*/\1/p' "$RES/app/package.json" | head -1)"
+HAVE="$(curl -s -m 1 -H "Host: localhost" "http://127.0.0.1:4747/api/location" | sed -n 's/.*"version": *"\([^"]*\)".*/\1/p')"
+if [ -n "$WANT" ] && [ "$WANT" != "$HAVE" ]; then
+  launchctl kickstart -k "gui/$(id -u)/$LABEL" 2>/dev/null
+  sleep 1
+  for i in $(seq 1 40); do up && break; sleep 0.25; done
+fi
+
 # The installed Chrome app has its own window and Dock icon.
 for dir in "$HOME/Applications/Chrome Apps.localized" "$HOME/Applications/Chrome Apps" "$HOME/Applications/Edge Apps.localized" "$HOME/Applications/Brave Browser Apps.localized"; do
   if [ -d "$dir/Coaching Hub.app" ]; then open "$dir/Coaching Hub.app"; exit 0; fi

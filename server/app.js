@@ -204,6 +204,12 @@ function createApp({ dataDir: startDir, localDir, today, port = 4747, fetchImpl,
   });
 
   // ----- automatic app updates -----
+  // The version this server process is running. If the files on disk are
+  // replaced by hand (a reinstall) while the server keeps running, the two
+  // differ, and the server restarts itself to pick up the new code.
+  const diskVersion = () => { try { return updater.localVersion(appDir); } catch { return null; } };
+  const runningVersion = diskVersion();
+  const codeChanged = () => { const d = diskVersion(); return !!(d && runningVersion && d !== runningVersion); };
   const saveUpdates = (patch) => svc().saveSettings({ updates: { ...svc().settings().updates, ...patch } }, false);
   async function checkAndInstall({ force = false, installNow = false } = {}) {
     const u = svc().settings().updates;
@@ -226,6 +232,10 @@ function createApp({ dataDir: startDir, localDir, today, port = 4747, fetchImpl,
     return { ...r, installed: true, version: v, restarting: !!onRestart };
   }
   async function autoUpdate() {
+    if (codeChanged() && onRestart) {
+      setTimeout(onRestart, 100);
+      return { restarting: true, reason: 'code changed on disk' };
+    }
     if (state.lock.other() && !state.conn) return null;
     return background(async () => {
       const u = svc().settings().updates;
@@ -235,7 +245,7 @@ function createApp({ dataDir: startDir, localDir, today, port = 4747, fetchImpl,
       return checkAndInstall();
     });
   }
-  on('GET', '/api/updates', () => ({ ...svc().settings().updates, version: updater.localVersion(appDir), inBundle: updater.inAppBundle(appDir) }));
+  on('GET', '/api/updates', () => ({ ...svc().settings().updates, version: runningVersion, onDisk: diskVersion(), inBundle: updater.inAppBundle(appDir) }));
   on('PUT', '/api/updates', ({ body }) => { saveUpdates({ auto: !!body.auto }); return { ok: true }; });
   on('POST', '/api/updates/check', async () => checkAndInstall({ installNow: true }));
 
@@ -331,6 +341,7 @@ function createApp({ dataDir: startDir, localDir, today, port = 4747, fetchImpl,
       icloudHasData: fs.existsSync(path.join(target, 'coaching-hub.sqlite')),
       busy: loc.isShared(dataDir) && !state.conn ? state.lock.other() : null,
       open: !!state.conn,
+      version: runningVersion,
     };
   }
   function switchTo(dir) {
@@ -534,7 +545,7 @@ function createApp({ dataDir: startDir, localDir, today, port = 4747, fetchImpl,
     }
   }
   const server = http.createServer(handle);
-  return { server, autoBackup, googleSync, state, closeData, autoImport, autoUpdate, checkAndInstall, close: () => { clearTimeout(syncTimer); clearInterval(tick); if (watchTimer) clearInterval(watchTimer); server.close(); closeData(); } };
+  return { server, autoBackup, googleSync, state, closeData, autoImport, autoUpdate, checkAndInstall, codeChanged, close: () => { clearTimeout(syncTimer); clearInterval(tick); if (watchTimer) clearInterval(watchTimer); server.close(); closeData(); } };
 }
 
 function readBody(req, limit) {

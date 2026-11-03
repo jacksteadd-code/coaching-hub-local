@@ -69,3 +69,26 @@ test('a broken download leaves the current app untouched', async () => {
   await assert.rejects(updater.check({ appDir, fetchImpl: async () => ({ ok: false, status: 404 }) }), /public/);
   fs.rmSync(base, { recursive: true, force: true });
 });
+
+test('a server notices when its app files are replaced while it runs', async () => {
+  const { createApp } = require('../server/app');
+  const { base, appDir } = fakeBundle();
+  const dataDir = fs.mkdtempSync(path.join(base, 'data-'));
+  let restarted = 0;
+  const app = createApp({ dataDir, localDir: dataDir, appDir, watchMs: 0, onRestart: () => { restarted++; } });
+  try {
+    assert.equal(app.codeChanged(), false);
+    const pkg = JSON.parse(fs.readFileSync(path.join(appDir, 'package.json'), 'utf8'));
+    const running = pkg.version;
+    fs.writeFileSync(path.join(appDir, 'package.json'), JSON.stringify({ ...pkg, version: '9.9.9' }));
+    assert.equal(app.codeChanged(), true);
+    const r = await app.autoUpdate();
+    assert.equal(r.restarting, true);
+    await new Promise((res) => setTimeout(res, 150));
+    assert.equal(restarted, 1);
+    assert.equal(running, pkg.version);
+  } finally {
+    app.close();
+    fs.rmSync(base, { recursive: true, force: true });
+  }
+});
