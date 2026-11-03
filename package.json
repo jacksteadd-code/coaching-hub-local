@@ -1,0 +1,12 @@
+{
+  "name": "coaching-hub",
+  "version": "1.4.0",
+  "private": true,
+  "description": "Personal endurance coaching tool that runs locally on your Mac.",
+  "scripts": {
+    "start": "node --no-warnings=ExperimentalWarning server/index.js",
+    "test": "node --no-warnings=ExperimentalWarning --test test/*.test.js"
+  },
+  "engines": { "node": ">=22.13" },
+  "license": "UNLICENSED"
+}
