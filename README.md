@@ -42,8 +42,8 @@ Use it on one Mac at a time. While a Mac is using the data it marks it as in use
 
 ## Automatic updates and imports
 
-- **App updates:** the Mac app checks `jacksteadd-code/coaching-hub-local` (main branch) once a day. When `package.json` there has a higher version, it downloads the branch, checks it, swaps in the new `server/` and `public/` inside the app, and restarts. Your data, backups and the bundled Node.js are not touched. This needs the repository to be public. Turn it off or check now in **Settings → App updates**.
-- **Import folder:** save TrainingPeaks workout exports (.csv) into `Documents/Coaching Hub Imports`, with the athlete's name in the file name. They're imported within a minute, then moved to `Imported`. Files that can't be matched go to `Needs attention`. Settings → Automatic import has the folder button and a log.
+- **App updates:** the Mac app checks `jacksteadd-code/coaching-hub-local` (main branch) every few hours. When `package.json` there has a higher version, it downloads the branch, checks it, swaps in the new `server/` and `public/` inside the app, and restarts. Your data, backups and the bundled Node.js are not touched. This needs the repository to be public. Turn it off or check now in **Settings → App updates**.
+- **Import folder:** save TrainingPeaks workout exports (.zip or .csv) into `Coaching Hub Imports` in your home folder (not Documents: macOS blocks background apps from Documents, Desktop and Downloads), with the athlete's name in the file name. Small spelling differences are fine (one letter for names of 5+ letters, two for 9+). They're imported within a minute, then moved to `Imported`. Files that can't be matched go to `Needs attention`. Settings → Automatic import has the folder button and a log.
 
 ## Backup and restore
 

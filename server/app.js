@@ -231,7 +231,7 @@ function createApp({ dataDir: startDir, localDir, today, port = 4747, fetchImpl,
       const u = svc().settings().updates;
       if (!u.auto || !updater.inAppBundle(appDir)) return null;
       const waiting = u.lastResult && u.lastResult.available;
-      if (!waiting && u.lastCheck && Date.now() - Date.parse(u.lastCheck) < 20 * 3600 * 1000) return null;
+      if (!waiting && u.lastCheck && Date.now() - Date.parse(u.lastCheck) < 6 * 3600 * 1000) return null;
       return checkAndInstall();
     });
   }
@@ -246,6 +246,7 @@ function createApp({ dataDir: startDir, localDir, today, port = 4747, fetchImpl,
   }
   let importing = false;
   let aiCache = null;
+  let importError = null;
   async function autoImport() {
     if (importing) return [];
     // Don't open shared data (and lock out the other Mac) just to read a setting.
@@ -255,14 +256,31 @@ function createApp({ dataDir: startDir, localDir, today, port = 4747, fetchImpl,
     }
     if (!a) return [];
     if (!a.enabled) return [];
-    const folder = a.folder || watcher.defaultFolder(home);
-    let has = false;
-    try { fs.mkdirSync(folder, { recursive: true }); has = fs.readdirSync(folder).some((f) => /\.csv$/i.test(f) && !f.startsWith('.')); } catch { return []; }
-    if (!has || state.lock.other()) return [];
+    // The default folder, plus the old default in Documents (version 1.4) in
+    // case files were left there and macOS allows reading it.
+    const folders = a.folder ? [a.folder] : [watcher.defaultFolder(home), path.join(home || require('node:os').homedir(), 'Documents', 'Coaching Hub Imports')];
+    const ready = [];
+    for (const [i, folder] of folders.entries()) {
+      try {
+        if (i === 0) fs.mkdirSync(folder, { recursive: true });
+        else if (!fs.existsSync(folder)) continue;
+        if (fs.readdirSync(folder).some((f) => watcher.FILE_RE.test(f) && !f.startsWith('.'))) ready.push(folder);
+        if (i === 0) importError = null;
+      } catch (e) {
+        if (i === 0) {
+          importError = e.code === 'EPERM' || e.code === 'EACCES' ? `macOS isn't letting Coaching Hub read ${folder}. Choose a folder outside Documents, Desktop and Downloads.` : `Can't read ${folder}: ${e.message}`;
+          console.error('Automatic import:', importError);
+        }
+      }
+    }
+    if (!ready.length || state.lock.other()) return [];
     importing = true;
     try {
       return await background(() => {
-        const entries = watcher.processFolder(svc(), folder);
+        const entries = [];
+        for (const folder of ready) {
+          try { entries.push(...watcher.processFolder(svc(), folder)); } catch (e) { console.error('Automatic import:', e.message); importError = e.message; }
+        }
         if (entries.length) {
           const cur = svc().settings().autoImport;
           svc().saveSettings({ autoImport: { ...cur, log: [...entries.reverse(), ...(cur.log || [])].slice(0, 40) } }, false);
@@ -278,7 +296,7 @@ function createApp({ dataDir: startDir, localDir, today, port = 4747, fetchImpl,
   watchTimer?.unref?.();
   on('GET', '/api/autoimport', () => {
     const a = svc().settings().autoImport;
-    return { ...a, folder: importFolder(), defaultFolder: watcher.defaultFolder(home), isDefault: !a.folder };
+    return { ...a, folder: importFolder(), defaultFolder: watcher.defaultFolder(home), isDefault: !a.folder, error: importError };
   });
   on('PUT', '/api/autoimport', ({ body }) => {
     const cur = svc().settings().autoImport;

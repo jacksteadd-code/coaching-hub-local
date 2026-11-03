@@ -507,7 +507,7 @@ async function updatesCard(el) {
   const when = (x) => (x ? new Date(x).toLocaleString() : 'never');
   el.innerHTML = `<h2>App updates ${u.auto ? '<span class="badge green">Automatic</span>' : '<span class="badge">Manual</span>'}</h2>
     <p>You're on version <b>${esc(u.version)}</b>.${u.lastUpdated ? ` Last updated to ${esc(u.lastUpdatedVersion)} on ${esc(when(u.lastUpdated))}.` : ''}</p>
-    <p>${u.auto ? 'Coaching Hub checks for a new version once a day and installs it when you\'re not using it. Your athletes and settings are never touched by an update.' : 'Automatic updates are off.'}</p>
+    <p>${u.auto ? 'Coaching Hub checks for a new version every few hours and installs it when you\'re not using it. Your athletes and settings are never touched by an update.' : 'Automatic updates are off.'}</p>
     <p><small>Last checked: ${esc(when(u.lastCheck))}${u.lastResult && u.lastResult.available ? ` · version ${esc(u.lastResult.latest)} is ready` : ''}</small></p>
     ${u.lastError ? `<div class="notice"><b>Last check failed:</b> ${esc(u.lastError)}</div>` : ''}
     ${u.inBundle ? '' : '<p><small>Updates install only in the Mac app (Coaching Hub in Applications).</small></p>'}
@@ -529,7 +529,8 @@ async function updatesCard(el) {
 async function autoImportCard(el) {
   const a = await api('GET', '/api/autoimport');
   el.innerHTML = `<h2>Automatic import ${a.enabled ? '<span class="badge green">On</span>' : '<span class="badge">Off</span>'}</h2>
-    <p>Save a TrainingPeaks workouts export (.csv) into this folder and it's imported within a minute. Put the athlete's name in the file name, for example <b>Kieran Masters.csv</b>. A first name is enough when only one athlete has it.</p>
+    <p>Save a TrainingPeaks workouts export (.zip or .csv) into this folder and it's imported within a minute. Put the athlete's name in the file name, for example <b>Kieran Masters.zip</b>. A first name is enough when only one athlete has it, and small spelling differences are fine.</p>
+    ${a.error ? `<div class="notice" style="border-color:var(--danger)"><b>Can't check the folder:</b> ${esc(a.error)}</div>` : ''}
     <p><small class="mono">${esc(a.folder)}</small></p>
     <div class="row"><button class="primary" data-aiopen>Open the folder</button><button data-airun>Check now</button><button data-aitoggle>${a.enabled ? 'Switch off' : 'Switch on'}</button></div>
     <p><small>Imported files move to "Imported". Files it can't match move to "Needs attention", so nothing is lost. Importing the same file twice doesn't create duplicates.</small></p>
